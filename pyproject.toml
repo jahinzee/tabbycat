@@ -8,20 +8,14 @@ packages = ["src/tabbycat"]
 [project]
 name = "tabbycat"
 description = "Tabulates and prints CSV and TSV data."
-version = "1.0"
-authors = [
-    { name="Jahin Z.", email="jahinzee@outlook.com" }
-]
+version = "2.0"
+authors = [{ name = "Jahin Z.", email = "jahinzee@outlook.com" }]
 readme = "README.md"
-license = {file = "LICENSE"}
-requires-python = ">=3.8"
-dependencies = [
-    "tabulate"
-]
+license = { file = "LICENSE" }
+requires-python = ">=3.9"
 classifiers = [
     "Development Status :: 4 - Beta",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",

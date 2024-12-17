@@ -8,7 +8,7 @@ Can read from either a given file, or from standard input.
 
 To install this script, use either pipx (recommended) or pip.
 
-```
+```sh
 pipx install git+https://github.com/jahinzee/tabbycat.git
 ```
 
@@ -18,7 +18,7 @@ Alternatively, you can download the `src/tabbycat/__init__.py` file from this re
 
 ## Usage
 
-```
+```txt
 usage: tabby [-h] [-s SEPERATOR] [-e {none,bold,dim,seperated,inverted}]
              [file]
 
@@ -33,4 +33,4 @@ options:
                         given a TSV file)
   -e {none,bold,dim,seperated,inverted}, --header {none,bold,dim,seperated,inverted}
                         apply special formatting to headers (default: none)
-``
+```

@@ -10,90 +10,120 @@ License, v. 2.0. If a copy of the MPL was not distributed with this
 file, You can obtain one at https://mozilla.org/MPL/2.0/.
 """
 
+import re
+import csv
+import typing
+import signal
+import sys
 
-import tabulate, sys, argparse
+from re import Pattern
+from argparse import ArgumentParser, Namespace, FileType
+from typing import Optional, Literal, Final
+from io import TextIOWrapper
+
+signal.signal(signal.SIGINT, (lambda _a, _b: sys.exit(0)))
+
+HeaderFormat = Literal["none", "bold", "dim", "underline", "inverted"]
 
 
-def get_args():
-    IS_OPTIONAL = "?"
-    parser = argparse.ArgumentParser(
+ANSI_REGEX: Final[Pattern] = re.compile("\\x1b\\[\\dm")
+
+
+def get_args() -> Namespace:
+    parser = ArgumentParser(
         "tabby", description="Tabulates and prints CSV and TSV data."
     )
     parser.add_argument(
-        "file",
-        help="name of input file, required in interactive use (i.e. nothing is in stdin).",
-        type=argparse.FileType("r"),
-        nargs=IS_OPTIONAL,
-        const=None,
-    )
-    parser.add_argument(
         "-s",
-        "--seperator",
-        help="column seperator character (default: ',', or '\\t' if given a TSV file)",
+        "--separator",
+        help=(
+            "column separator character, "
+            "defaults to ',' or '\\t', depending on input file"
+        ),
     )
     parser.add_argument(
         "-e",
         "--header",
-        help="apply special formatting to headers (default: none)",
-        choices=["none", "bold", "dim", "seperated", "inverted"],
+        help="apply special formatting to headers, defaults to none.",
+        choices=list(typing.get_args(HeaderFormat)),
         default="none",
     )
+    parser.add_argument(
+        "file",
+        help="name of input files, uses stdin if empty.",
+        metavar="FILE",
+        nargs="?",
+        type=FileType("r"),
+        default=sys.stdin,
+    )
+
     return parser.parse_args()
 
 
-def get_seperator_character(seperator, file):
-    if seperator is not None:
-        return seperator
-    elif file.name.endswith(".tsv"):
+def get_separator_character(file: TextIOWrapper, override: Optional[str] = None) -> str:
+    if override is not None:
+        return override
+    if file.name.endswith(".tsv"):
         return "\t"
-    else:
-        return ","
+    return ","
 
 
-def get_input_stream(file):
-    if not sys.stdin.isatty():
-        return sys.stdin
-    elif file is not None:
-        return file
-    else:
-        print(
-            "No input provided. Please provide a filename or a stream at stdin.",
-            file=sys.stderr,
-        )
-        exit(1)
+def get_ansi_code_padding_bias(string: str) -> int:
+    return len(re.findall(ANSI_REGEX, string)) * 4
 
 
-def format_header(table, header):
-    if header == "none":
-        return table
-    # ANSI codes sourced from: https://gist.github.com/rene-d/9e584a7dd2935d0f461904b9f2950007
-    BOLD = "\033[1m"
-    DIM = "\033[2m"
-    INVERTED = "\033[7m"
-    RESET = "\033[0m"
-    table_header, table_body = table[0], table[1:]
-    if header == "seperated":
-        seperators = ["-" * len(col) for col in table_header]
-        return [table_header] + [seperators] + table_body
-    format = RESET
-    if header == "bold":
-        format = BOLD
-    if header == "dim":
-        format = DIM
-    if header == "inverted":
-        format = INVERTED
-    return [[f"{format}{col}{RESET}" for col in table_header]] + table_body
+def format_header(header: list[str], header_format: HeaderFormat) -> list[str]:
+    ANSI_CODES = {
+        # ANSI codes sourced from:
+        # https://gist.github.com/rene-d/9e584a7dd2935d0f461904b9f2950007
+        "none": "\033[0m",
+        "bold": "\033[1m",
+        "dim": "\033[2m",
+        "underline": "\033[4m",
+        "inverted": "\033[7m",
+    }
+
+    fmt, reset = ANSI_CODES[header_format], ANSI_CODES["none"]
+    header = [f"{fmt}{col}{reset}" for col in header]
+
+    return header
 
 
 def main():
     args = get_args()
-    input_stream = get_input_stream(args.file)
-    seperator = get_seperator_character(args.seperator, input_stream)
-    col_split = [line.strip() for line in input_stream]
-    row_split = [line.split(seperator) for line in col_split]
-    formatted = format_header(row_split, args.header)
-    tabulated = tabulate.tabulate(formatted, tablefmt="plain")
-    print(tabulated)
+    table = list(
+        csv.reader(
+            args.file,
+            delimiter=get_separator_character(args.file, override=args.separator),
+        )
+    )
+
+    # Apply ANSI formatting to header, if specified by args.
+    header, body = format_header(table[0], header_format=args.header), table[1:]
+    table = [header] + body
+
+    # Transpose table. -- table[row][col] → table[col][row]
+    table = list(zip(*table))  # type:ignore
+
+    # Find spacing value for each column, not counting ANSI codes.
+    spacing = (
+        max(len(row) - get_ansi_code_padding_bias(row) + 2 for row in col) + 1
+        for col in table
+    )
+
+    # Pad and apply spacing value to each column, accounting for ANSI format
+    # codes.
+    spaced_columns = (
+        [f"{cell:<{s+get_ansi_code_padding_bias(cell)}}" for cell in col]
+        for s, col in zip(spacing, table)
+    )
+
+    # Re-transpose table. -- table[col][row] → table[row][col]
+    table = zip(*spaced_columns)  # type:ignore
+
+    ## Print rows.
+    for row in table:
+        print("".join(row))
 
 
 if __name__ == "__main__":
