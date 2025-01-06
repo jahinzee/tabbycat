@@ -73,17 +73,17 @@ def get_ansi_code_padding_bias(string: str) -> int:
 
 
 def format_header(header: list[str], header_format: HeaderFormat) -> list[str]:
-    ANSI_CODES = {
+    ANSI_CODES: dict[HeaderFormat, tuple[str, str]] = {
         # ANSI codes sourced from:
         # https://gist.github.com/rene-d/9e584a7dd2935d0f461904b9f2950007
-        "none": "\033[0m",
-        "bold": "\033[1m",
-        "dim": "\033[2m",
-        "underline": "\033[4m",
-        "inverted": "\033[7m",
+        "none": ("", ""),
+        "bold": ("\033[1m", "\033[0m"),
+        "dim": ("\033[2m", "\033[0m"),
+        "underline": ("\033[4m", "\033[0m"),
+        "inverted": ("\033[7m", "\033[0m"),
     }
 
-    fmt, reset = ANSI_CODES[header_format], ANSI_CODES["none"]
+    fmt, reset = ANSI_CODES[header_format]
     header = [f"{fmt}{col}{reset}" for col in header]
 
     return header
@@ -119,7 +119,7 @@ def main():
     )
 
     # Re-transpose table. -- table[col][row] → table[row][col]
-    table = zip(*spaced_columns)  # type:ignore
+    table = zip(*spaced_columns)
 
     ## Print rows.
     for row in table:

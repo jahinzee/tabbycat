@@ -8,7 +8,7 @@ packages = ["src/tabbycat"]
 [project]
 name = "tabbycat"
 description = "Tabulates and prints CSV and TSV data."
-version = "2.0"
+version = "2.1"
 authors = [{ name = "Jahin Z.", email = "jahinzee@outlook.com" }]
 readme = "README.md"
 license = { file = "LICENSE" }
